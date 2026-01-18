@@ -1,2 +1,3 @@
 # Lotus-Resume
-Build life changing resumes
+
+Build life-changing resumes
