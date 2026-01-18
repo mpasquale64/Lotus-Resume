@@ -1,140 +1,78 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Resume DOCX Generator</title>
-        <style>
-            body {
-                font-family:
-                    system-ui,
-                    -apple-system,
-                    sans-serif;
-                max-width: 800px;
-                margin: 2rem auto;
-                padding: 0 1rem;
-                line-height: 1.5;
-            }
-            .container {
-                background: #f9f9f9;
-                padding: 2rem;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            }
-            textarea {
-                width: 100%;
-                height: 300px;
-                font-family: monospace;
-                margin: 1rem 0;
-                padding: 1rem;
-                border: 1px solid #ccc;
-                border-radius: 4px;
-            }
-            button {
-                background: #007bff;
-                color: white;
-                border: none;
-                padding: 0.75rem 1.5rem;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 1rem;
-            }
-            button:hover {
-                background: #0056b3;
-            }
-            .example {
-                font-size: 0.9rem;
-                color: #666;
-                margin-top: 1rem;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Resume DOCX Generator</h1>
-            <p>
-                Paste your resume JSON below to generate a professionally
-                formatted .docx file.
-            </p>
-            <textarea id="jsonInput">
-{
-  "name": "John Doe",
-  "contact": {
-    "items": ["(123) 456-7890", "john@example.com", "linkedin.com/in/johndoe"]
-  },
-  "summary": {
-    "heading": "PROFESSIONAL SUMMARY",
-    "text": "Experienced software engineer with a focus on web technologies."
-  },
-  "sections": [
-    {
-      "heading": "SKILLS",
-      "type": "skills",
-      "content": [
-        { "label": "Languages", "items": ["JavaScript", "Python", "SQL"] }
-      ]
-    },
-    {
-      "heading": "EXPERIENCE",
-      "type": "experience",
-      "content": [
-        {
-          "company": "Tech Corp",
-          "title": "Senior Engineer",
-          "dates": "2020 - Present",
-          "location": "San Francisco, CA",
-          "bullets": ["Led team of 5", "Optimized performance by 40%"]
-        }
-      ]
-    }
-  ]
-}</textarea
-            >
-            <button onclick="generate()">Generate DOCX</button>
-            <div class="example">
-                <h3>Sample JSON structure:</h3>
-                <pre>
-{
-  "name": "Your Name",
-  "contact": { "items": ["phone", "email", "url"] },
-  "summary": { "text": "summary text" },
-  "sections": [
-    { "heading": "SKILLS", "type": "skills", "content": [...] },
-    { "heading": "EXPERIENCE", "type": "experience", "content": [...] }
-  ]
-}
-            </pre
-                >
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotus Resume Generator</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; line-height: 1.6; color: #333; }
+        h1 { color: #2c3e50; }
+        .card { border: 1px solid #e1e4e8; border-radius: 6px; padding: 24px; background: #f6f8fa; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input[type="file"] { display: block; width: 100%; }
+        button { background-color: #2ea44f; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 600; }
+        button:hover { background-color: #2c974b; }
+        button:disabled { background-color: #94d3a2; cursor: not-allowed; }
+        #status { margin-top: 16px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>Lotus Resume Generator</h1>
+    <div class="card">
+        <form id="resumeForm">
+            <div class="form-group">
+                <label for="jsonFile">Upload Resume JSON</label>
+                <input type="file" id="jsonFile" accept=".json" required>
             </div>
-        </div>
+            <button type="submit" id="generateBtn">Generate DOCX</button>
+        </form>
+        <div id="status"></div>
+    </div>
 
-        <script>
-            async function generate() {
-                const input = document.getElementById("jsonInput").value;
-                try {
-                    const data = JSON.parse(input);
-                    const response = await fetch("/generate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(data),
-                    });
+    <script>
+        const form = document.getElementById('resumeForm');
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('generateBtn');
 
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "resume.docx";
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                    } else {
-                        alert("Error: " + (await response.text()));
-                    }
-                } catch (e) {
-                    alert("Invalid JSON: " + e.message);
-                }
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('jsonFile');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            statusDiv.textContent = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/generate', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Failed to generate resume');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'resume.docx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                
+                statusDiv.textContent = 'Success! Download started.';
+                statusDiv.style.color = 'green';
+            } catch (error) {
+                console.error(error);
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.style.color = 'red';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate DOCX';
             }
-        </script>
-    </body>
+        });
+    </script>
+</body>
 </html>
