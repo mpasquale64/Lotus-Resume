@@ -29,6 +29,48 @@ class ResumeDocumentBuilder {
     this.children = [];
   }
 
+  // --- Helper Methods to Reduce Redundancy ---
+
+  createText(text, options = {}) {
+    return new TextRun({
+      text: text || "",
+      font: CONFIG.fonts.primary,
+      size: CONFIG.sizes.body,
+      color: CONFIG.colors.black,
+      ...options
+    });
+  }
+
+  createParagraph(children, style = "Normal", options = {}) {
+    return new Paragraph({
+      style: style,
+      children: Array.isArray(children) ? children : [children],
+      ...options
+    });
+  }
+
+  createSplitLine(leftText, rightText, style) {
+    const children = [this.createText(leftText)];
+    if (rightText) {
+      children.push(this.createText("\t"));
+      children.push(this.createText(rightText));
+    }
+    return this.createParagraph(children, style, {
+      tabStops: [{ type: TabStopType.RIGHT, position: CONFIG.rightTabPosition }]
+    });
+  }
+
+  createBullet(content) {
+    const children = Array.isArray(content) ? content : [this.createText(content)];
+    return this.createParagraph(children, undefined, {
+      numbering: { reference: "resume-bullets", level: 0 }
+    });
+  }
+
+  addBullets(bullets) {
+    if (bullets) bullets.forEach(b => this.children.push(this.createBullet(b)));
+  }
+
   build() {
     this.addNameHeader();
     this.addContactLine();
@@ -92,24 +134,29 @@ class ResumeDocumentBuilder {
   }
 
   addNameHeader() {
-    this.children.push(new Paragraph({ style: "Heading1", children: [new TextRun({ text: this.data.name })] }));
+    this.children.push(this.createParagraph(
+      this.createText(this.data.name, { size: CONFIG.sizes.name, bold: true }),
+      "Heading1"
+    ));
   }
 
   addContactLine() {
-    this.children.push(new Paragraph({ style: "Normal", children: [new TextRun({ text: this.data.contact.items.join(" | ") })] }));
+    this.children.push(this.createParagraph(
+      this.createText(this.data.contact.items.join(" | "))
+    ));
   }
 
   addSummarySection() {
-    this.children.push(new Paragraph({ style: "Heading2", children: [new TextRun({ text: this.data.summary.heading || "PROFESSIONAL SUMMARY" })] }));
-    this.children.push(new Paragraph({ style: "Normal", children: [new TextRun({ text: this.data.summary.text })] }));
+    this.children.push(this.createParagraph(this.createText(this.data.summary.heading || "PROFESSIONAL SUMMARY"), "Heading2"));
+    this.children.push(this.createParagraph(this.createText(this.data.summary.text)));
   }
 
   addEmptyLine() {
-    this.children.push(new Paragraph({ style: "Normal", children: [] }));
+    this.children.push(this.createParagraph([]));
   }
 
   addSection(section) {
-    this.children.push(new Paragraph({ style: "Heading2", children: [new TextRun({ text: section.heading })] }));
+    this.children.push(this.createParagraph(this.createText(section.heading), "Heading2"));
     switch (section.type) {
       case "skills": this.addSkillsContent(section.content); break;
       case "experience": this.addExperienceContent(section.content); break;
@@ -121,105 +168,50 @@ class ResumeDocumentBuilder {
 
   addSkillsContent(skillGroups) {
     for (const group of skillGroups) {
-      this.children.push(new Paragraph({
-        style: "Normal",
-        children: [
-          new TextRun({ text: `${group.label}: `, bold: true }),
-          new TextRun({ text: group.items.join(", ") })
-        ]
-      }));
+      this.children.push(this.createParagraph([
+        this.createText(`${group.label}: `, { bold: true }),
+        this.createText(group.items.join(", "))
+      ]));
     }
   }
 
   addExperienceContent(experiences) {
     for (const exp of experiences) {
-      this.children.push(new Paragraph({
-        style: "Employer",
-        children: [
-          new TextRun({ text: exp.company }),
-          new TextRun({ text: "\t", bold: true }),
-          new TextRun({ text: exp.dates || "" })
-        ]
-      }));
-      this.children.push(new Paragraph({
-        style: "JobRole",
-        children: [
-          new TextRun({ text: exp.title }),
-          new TextRun({ text: "\t", italics: true }),
-          new TextRun({ text: exp.location || "" })
-        ]
-      }));
-      for (const bullet of exp.bullets) {
-        this.children.push(new Paragraph({
-          numbering: { reference: "resume-bullets", level: 0 },
-          children: [new TextRun({ text: bullet })]
-        }));
-      }
+      this.children.push(this.createSplitLine(exp.company, exp.dates, "Employer"));
+      this.children.push(this.createSplitLine(exp.title, exp.location, "JobRole"));
+      this.addBullets(exp.bullets);
     }
   }
 
   addEducationContent(educationEntries) {
     for (const edu of educationEntries) {
-      this.children.push(new Paragraph({
-        style: "Employer",
-        children: [
-          new TextRun({ text: edu.institution }),
-          new TextRun({ text: "\t" }),
-          new TextRun({ text: edu.location || "" })
-        ]
-      }));
-      this.children.push(new Paragraph({
-        style: "JobRole",
-        children: [
-          new TextRun({ text: edu.degree }),
-          new TextRun({ text: "\t" }),
-          new TextRun({ text: edu.dates || "" })
-        ]
-      }));
-      if (edu.details) {
-        for (const detail of edu.details) {
-          this.children.push(new Paragraph({
-            numbering: { reference: "resume-bullets", level: 0 },
-            children: [new TextRun({ text: detail })]
-          }));
-        }
-      }
+      this.children.push(this.createSplitLine(edu.institution, edu.location, "Employer"));
+      this.children.push(this.createSplitLine(edu.degree, edu.dates, "JobRole"));
+      this.addBullets(edu.details);
     }
   }
 
   addCertificationsContent(certs) {
     for (const cert of certs) {
-      this.children.push(new Paragraph({
-        numbering: { reference: "resume-bullets", level: 0 },
-        children: [
-          new TextRun({ text: cert.name, bold: true }),
-          new TextRun({ text: cert.issuer ? ` – ${cert.issuer}` : "" }),
-          new TextRun({ text: cert.date ? ` (${cert.date})` : "" })
-        ]
-      }));
+      this.children.push(this.createBullet([
+        this.createText(cert.name, { bold: true }),
+        this.createText(cert.issuer ? ` – ${cert.issuer}` : ""),
+        this.createText(cert.date ? ` (${cert.date})` : "")
+      ]));
     }
   }
 
   addProjectsContent(projects) {
     for (const project of projects) {
-      this.children.push(new Paragraph({
-        style: "Employer",
-        children: [
-          new TextRun({ text: project.name }),
-          new TextRun({ text: project.technologies ? ` | ${project.technologies}` : "" }),
-          new TextRun({ text: "\t" }),
-          new TextRun({ text: project.dates || "" })
-        ]
-      }));
+      const nameText = project.name + (project.technologies ? ` | ${project.technologies}` : "");
+      this.children.push(this.createSplitLine(nameText, project.dates, "Employer"));
+      
       if (project.link) {
-        this.children.push(new Paragraph({ style: "Normal", children: [new TextRun({ text: project.link, color: "0563C1" })] }));
+        this.children.push(this.createParagraph(
+          this.createText(project.link, { color: "0563C1" })
+        ));
       }
-      for (const bullet of project.bullets) {
-        this.children.push(new Paragraph({
-          numbering: { reference: "resume-bullets", level: 0 },
-          children: [new TextRun({ text: bullet })]
-        }));
-      }
+      this.addBullets(project.bullets);
     }
   }
 }
