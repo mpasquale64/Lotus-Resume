@@ -79,6 +79,9 @@ class ResumeDocumentBuilder {
       this.addSummarySection();
     }
     for (const section of this.data.sections) {
+      if (!section.content || (Array.isArray(section.content) && section.content.length === 0)) {
+        continue;
+      }
       this.addEmptyLine();
       this.addSection(section);
     }
