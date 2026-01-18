@@ -1,0 +1,113 @@
+{
+  "name": "Jane Smith",
+  "contact": {
+    "items": ["jane.smith@email.com", "(555) 987-6543", "linkedin.com/in/janesmith", "portfolio.janesmith.com"]
+  },
+  "summary": {
+    "heading": "PROFESSIONAL SUMMARY",
+    "text": "Results-driven product manager with 7+ years of experience leading cross-functional teams to deliver innovative software products. Expertise in agile methodologies, user research, and data-driven decision making. Proven ability to translate business objectives into actionable product strategies."
+  },
+  "sections": [
+    {
+      "heading": "EXPERIENCE",
+      "type": "experience",
+      "content": [
+        {
+          "company": "Innovation Labs",
+          "dates": "Mar 2021 - Present",
+          "title": "Senior Product Manager",
+          "location": "Seattle, WA",
+          "bullets": [
+            "Led product strategy for B2B SaaS platform generating $5M+ annual revenue",
+            "Increased user engagement by 45% through data-driven feature prioritization and A/B testing",
+            "Managed roadmap and coordinated releases across engineering, design, and marketing teams",
+            "Conducted user interviews and usability studies with 100+ customers to inform product decisions"
+          ]
+        },
+        {
+          "company": "TechStart Inc.",
+          "dates": "Jan 2019 - Feb 2021",
+          "title": "Product Manager",
+          "location": "Portland, OR",
+          "bullets": [
+            "Launched mobile app that acquired 50K users in first 6 months",
+            "Collaborated with engineering team to reduce app load time by 70%",
+            "Defined and tracked KPIs including DAU, retention rate, and conversion metrics",
+            "Presented quarterly product updates to executive leadership and stakeholders"
+          ]
+        },
+        {
+          "company": "Digital Solutions Co.",
+          "dates": "Jun 2017 - Dec 2018",
+          "title": "Associate Product Manager",
+          "location": "San Diego, CA",
+          "bullets": [
+            "Assisted in managing product backlog and sprint planning for agile development team",
+            "Created user stories and acceptance criteria for new features",
+            "Performed competitive analysis and market research to identify product opportunities"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "EDUCATION",
+      "type": "education",
+      "content": [
+        {
+          "institution": "State University",
+          "location": "Los Angeles, CA",
+          "degree": "M.B.A., Technology Management",
+          "dates": "2015 - 2017",
+          "details": [
+            "GPA: 3.9/4.0",
+            "Concentration: Product Innovation and Entrepreneurship"
+          ]
+        },
+        {
+          "institution": "State University",
+          "location": "Los Angeles, CA",
+          "degree": "B.S. in Business Administration",
+          "dates": "2011 - 2015",
+          "details": [
+            "Minor in Computer Science",
+            "Dean's List, Honors Program"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "SKILLS",
+      "type": "skills",
+      "content": [
+        {
+          "label": "Product Management",
+          "items": ["Roadmap Planning", "User Research", "A/B Testing", "Feature Prioritization", "Competitive Analysis"]
+        },
+        {
+          "label": "Technical",
+          "items": ["SQL", "Google Analytics", "Mixpanel", "JIRA", "Confluence", "Figma", "API Design"]
+        },
+        {
+          "label": "Methodologies",
+          "items": ["Agile/Scrum", "Lean Startup", "Design Thinking", "OKRs", "Data-Driven Decision Making"]
+        }
+      ]
+    },
+    {
+      "heading": "CERTIFICATIONS",
+      "type": "certifications",
+      "content": [
+        {
+          "name": "Certified Scrum Product Owner (CSPO)",
+          "issuer": "Scrum Alliance",
+          "date": "2020"
+        },
+        {
+          "name": "Google Analytics Individual Qualification",
+          "issuer": "Google",
+          "date": "2019"
+        }
+      ]
+    }
+  ]
+}
