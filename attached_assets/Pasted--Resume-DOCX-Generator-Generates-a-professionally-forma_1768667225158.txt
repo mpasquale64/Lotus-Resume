@@ -1,0 +1,882 @@
+**
+ * Resume DOCX Generator
+ * 
+ * Generates a professionally formatted resume document from JSON data.
+ * Uses docx-js library with formatting matching professional standards.
+ * 
+ * Usage:
+ *   node generate-resume.js input.json output.docx
+ * 
+ * Install dependencies:
+ *   npm install docx
+ */
+
+const {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  TabStopType,
+  TabStopPosition,
+  AlignmentType,
+  LevelFormat,
+  HeadingLevel,
+  convertInchesToTwip
+} = require('docx');
+const fs = require('fs');
+const path = require('path');
+
+// ============================================================================
+// CONFIGURATION - Formatting Constants (based on analyzed resume)
+// ============================================================================
+
+const CONFIG = {
+  // Page Setup
+  page: {
+    width: 12240,           // 8.5 inches in TWIPs
+    height: 15840,          // 11 inches in TWIPs
+    margins: {
+      top: 720,             // 0.5 inches
+      bottom: 720,          // 0.5 inches
+      left: 720,            // 0.5 inches
+      right: 720            // 0.5 inches
+    }
+  },
+  
+  // Typography
+  fonts: {
+    primary: "Calibri",
+    fallback: "Arial"
+  },
+  
+  // Font Sizes (in half-points, so 21 = 10.5pt)
+  sizes: {
+    name: 40,               // 20pt - Heading 1
+    sectionHeader: 28,      // 14pt - Heading 2
+    body: 21,               // 10.5pt - Normal text
+    small: 20               // 10pt - If needed
+  },
+  
+  // Colors
+  colors: {
+    black: "000000",
+    darkGray: "666666"
+  },
+  
+  // Spacing (in TWIPs)
+  spacing: {
+    afterParagraph: 80,     // 4pt after paragraphs
+    afterSection: 0,        // No extra space after section headers
+    sectionGap: 160,        // 8pt gap between sections (empty paragraph)
+    lineSpacing: 240        // Single line spacing
+  },
+  
+  // Bullet configuration
+  bullets: {
+    leftIndent: 288,        // 0.2 inches
+    hangingIndent: 288      // 0.2 inches
+  },
+  
+  // Tab stop for right-aligned dates/locations
+  // Content width = page width - left margin - right margin
+  // 12240 - 720 - 720 = 10800 TWIPs = 7.5 inches from left edge of content
+  rightTabPosition: 10800
+};
+
+// ============================================================================
+// DOCUMENT BUILDER CLASS
+// ============================================================================
+
+class ResumeDocumentBuilder {
+  constructor(resumeData) {
+    this.data = resumeData;
+    this.children = [];
+  }
+
+  /**
+   * Build the complete document
+   */
+  build() {
+    // Add name header
+    this.addNameHeader();
+    
+    // Add contact line
+    this.addContactLine();
+    
+    // Add professional summary if present
+    if (this.data.summary) {
+      this.addEmptyLine();
+      this.addSummarySection();
+    }
+    
+    // Add each section
+    for (const section of this.data.sections) {
+      this.addEmptyLine();
+      this.addSection(section);
+    }
+    
+    // Create and return document
+    return new Document({
+      styles: this.getStyles(),
+      numbering: this.getNumberingConfig(),
+      sections: [{
+        properties: {
+          page: {
+            size: {
+              width: CONFIG.page.width,
+              height: CONFIG.page.height
+            },
+            margin: CONFIG.page.margins
+          }
+        },
+        children: this.children
+      }]
+    });
+  }
+
+  /**
+   * Get document styles configuration
+   */
+  getStyles() {
+    return {
+      default: {
+        document: {
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.body,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: CONFIG.spacing.afterParagraph,
+              line: CONFIG.spacing.lineSpacing,
+              lineRule: "auto"
+            }
+          }
+        }
+      },
+      paragraphStyles: [
+        {
+          id: "Normal",
+          name: "Normal",
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.body,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: CONFIG.spacing.afterParagraph,
+              line: CONFIG.spacing.lineSpacing
+            }
+          }
+        },
+        {
+          id: "Heading1",
+          name: "Heading 1",
+          basedOn: "Normal",
+          next: "Normal",
+          quickFormat: true,
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.name,
+            bold: true,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: CONFIG.spacing.afterParagraph
+            }
+          }
+        },
+        {
+          id: "Heading2",
+          name: "Heading 2",
+          basedOn: "Normal",
+          next: "Normal",
+          quickFormat: true,
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.sectionHeader,
+            bold: true,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: CONFIG.spacing.afterParagraph
+            }
+          }
+        },
+        {
+          id: "Employer",
+          name: "Employer",
+          basedOn: "Normal",
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.body,
+            bold: true,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: 0  // No space after employer line
+            },
+            tabStops: [
+              {
+                type: TabStopType.RIGHT,
+                position: CONFIG.rightTabPosition
+              }
+            ]
+          }
+        },
+        {
+          id: "JobRole",
+          name: "Job Role",
+          basedOn: "Normal",
+          run: {
+            font: CONFIG.fonts.primary,
+            size: CONFIG.sizes.body,
+            italics: true,
+            color: CONFIG.colors.black
+          },
+          paragraph: {
+            spacing: {
+              after: CONFIG.spacing.afterParagraph
+            },
+            tabStops: [
+              {
+                type: TabStopType.RIGHT,
+                position: CONFIG.rightTabPosition
+              }
+            ]
+          }
+        }
+      ]
+    };
+  }
+
+  /**
+   * Get bullet list numbering configuration
+   */
+  getNumberingConfig() {
+    return {
+      config: [
+        {
+          reference: "resume-bullets",
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.BULLET,
+              text: "â¢",
+              alignment: AlignmentType.LEFT,
+              style: {
+                paragraph: {
+                  indent: {
+                    left: CONFIG.bullets.leftIndent,
+                    hanging: CONFIG.bullets.hangingIndent
+                  }
+                },
+                run: {
+                  font: CONFIG.fonts.primary
+                }
+              }
+            }
+          ]
+        }
+      ]
+    };
+  }
+
+  /**
+   * Add the name as main heading
+   */
+  addNameHeader() {
+    this.children.push(
+      new Paragraph({
+        style: "Heading1",
+        children: [
+          new TextRun({
+            text: this.data.name,
+            bold: true,
+            size: CONFIG.sizes.name,
+            font: CONFIG.fonts.primary
+          })
+        ]
+      })
+    );
+  }
+
+  /**
+   * Add contact information line
+   */
+  addContactLine() {
+    const contactText = this.data.contact.items.join(" | ");
+    this.children.push(
+      new Paragraph({
+        style: "Normal",
+        children: [
+          new TextRun({
+            text: contactText,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        ]
+      })
+    );
+  }
+
+  /**
+   * Add professional summary section
+   */
+  addSummarySection() {
+    // Section header
+    this.children.push(
+      new Paragraph({
+        style: "Heading2",
+        children: [
+          new TextRun({
+            text: this.data.summary.heading || "PROFESSIONAL SUMMARY",
+            bold: true,
+            size: CONFIG.sizes.sectionHeader,
+            font: CONFIG.fonts.primary
+          })
+        ]
+      })
+    );
+
+    // Summary text
+    this.children.push(
+      new Paragraph({
+        style: "Normal",
+        children: [
+          new TextRun({
+            text: this.data.summary.text,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        ]
+      })
+    );
+  }
+
+  /**
+   * Add an empty paragraph for spacing
+   */
+  addEmptyLine() {
+    this.children.push(
+      new Paragraph({
+        style: "Normal",
+        children: []
+      })
+    );
+  }
+
+  /**
+   * Route section to appropriate handler
+   */
+  addSection(section) {
+    // Add section header
+    this.children.push(
+      new Paragraph({
+        style: "Heading2",
+        children: [
+          new TextRun({
+            text: section.heading,
+            bold: true,
+            size: CONFIG.sizes.sectionHeader,
+            font: CONFIG.fonts.primary
+          })
+        ]
+      })
+    );
+
+    // Handle content based on type
+    switch (section.type) {
+      case "skills":
+        this.addSkillsContent(section.content);
+        break;
+      case "experience":
+        this.addExperienceContent(section.content);
+        break;
+      case "education":
+        this.addEducationContent(section.content);
+        break;
+      case "certifications":
+        this.addCertificationsContent(section.content);
+        break;
+      case "projects":
+        this.addProjectsContent(section.content);
+        break;
+      default:
+        console.warn(`Unknown section type: ${section.type}`);
+    }
+  }
+
+  /**
+   * Add skills section content
+   */
+  addSkillsContent(skillGroups) {
+    for (const group of skillGroups) {
+      const skillsText = group.items.join(", ");
+      this.children.push(
+        new Paragraph({
+          style: "Normal",
+          children: [
+            new TextRun({
+              text: `${group.label}: `,
+              bold: true,
+              size: CONFIG.sizes.body,
+              font: CONFIG.fonts.primary
+            }),
+            new TextRun({
+              text: skillsText,
+              size: CONFIG.sizes.body,
+              font: CONFIG.fonts.primary
+            })
+          ]
+        })
+      );
+    }
+  }
+
+  /**
+   * Add experience section content
+   */
+  addExperienceContent(experiences) {
+    for (let i = 0; i < experiences.length; i++) {
+      const exp = experiences[i];
+      
+      // Employer line with dates (right-aligned via tab)
+      const employerChildren = [
+        new TextRun({
+          text: exp.company,
+          bold: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (exp.dates) {
+        employerChildren.push(
+          new TextRun({
+            text: "\t",
+            bold: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          }),
+          new TextRun({
+            text: exp.dates,
+            bold: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          style: "Employer",
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: CONFIG.rightTabPosition
+            }
+          ],
+          children: employerChildren
+        })
+      );
+
+      // Job title line with location (right-aligned via tab)
+      const titleChildren = [
+        new TextRun({
+          text: exp.title,
+          italics: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (exp.location) {
+        titleChildren.push(
+          new TextRun({
+            text: "\t",
+            italics: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          }),
+          new TextRun({
+            text: exp.location,
+            italics: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          style: "JobRole",
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: CONFIG.rightTabPosition
+            }
+          ],
+          children: titleChildren
+        })
+      );
+
+      // Bullet points
+      for (const bullet of exp.bullets) {
+        this.children.push(
+          new Paragraph({
+            numbering: {
+              reference: "resume-bullets",
+              level: 0
+            },
+            spacing: {
+              after: CONFIG.spacing.afterParagraph
+            },
+            children: [
+              new TextRun({
+                text: bullet,
+                size: CONFIG.sizes.body,
+                font: CONFIG.fonts.primary
+              })
+            ]
+          })
+        );
+      }
+    }
+  }
+
+  /**
+   * Add education section content
+   */
+  addEducationContent(educationEntries) {
+    for (const edu of educationEntries) {
+      // Institution line with dates/location
+      const institutionChildren = [
+        new TextRun({
+          text: edu.institution,
+          bold: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (edu.location) {
+        institutionChildren.push(
+          new TextRun({
+            text: "\t",
+            bold: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          }),
+          new TextRun({
+            text: edu.location,
+            bold: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          style: "Employer",
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: CONFIG.rightTabPosition
+            }
+          ],
+          children: institutionChildren
+        })
+      );
+
+      // Degree line
+      const degreeChildren = [
+        new TextRun({
+          text: edu.degree,
+          italics: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (edu.dates) {
+        degreeChildren.push(
+          new TextRun({
+            text: "\t",
+            italics: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          }),
+          new TextRun({
+            text: edu.dates,
+            italics: true,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          style: "JobRole",
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: CONFIG.rightTabPosition
+            }
+          ],
+          children: degreeChildren
+        })
+      );
+
+      // Additional details as bullets if present
+      if (edu.details && edu.details.length > 0) {
+        for (const detail of edu.details) {
+          this.children.push(
+            new Paragraph({
+              numbering: {
+                reference: "resume-bullets",
+                level: 0
+              },
+              spacing: {
+                after: CONFIG.spacing.afterParagraph
+              },
+              children: [
+                new TextRun({
+                  text: detail,
+                  size: CONFIG.sizes.body,
+                  font: CONFIG.fonts.primary
+                })
+              ]
+            })
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Add certifications section content
+   */
+  addCertificationsContent(certifications) {
+    for (const cert of certifications) {
+      const certChildren = [
+        new TextRun({
+          text: cert.name,
+          bold: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (cert.issuer) {
+        certChildren.push(
+          new TextRun({
+            text: ` â ${cert.issuer}`,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      if (cert.date) {
+        certChildren.push(
+          new TextRun({
+            text: ` (${cert.date})`,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          numbering: {
+            reference: "resume-bullets",
+            level: 0
+          },
+          spacing: {
+            after: CONFIG.spacing.afterParagraph
+          },
+          children: certChildren
+        })
+      );
+      
+      // Add details if present
+      if (cert.details) {
+        this.children.push(
+          new Paragraph({
+            style: "Normal",
+            indent: {
+              left: CONFIG.bullets.leftIndent
+            },
+            children: [
+              new TextRun({
+                text: cert.details,
+                size: CONFIG.sizes.body,
+                font: CONFIG.fonts.primary
+              })
+            ]
+          })
+        );
+      }
+    }
+  }
+
+  /**
+   * Add projects section content
+   */
+  addProjectsContent(projects) {
+    for (const project of projects) {
+      // Project name line
+      const projectChildren = [
+        new TextRun({
+          text: project.name,
+          bold: true,
+          size: CONFIG.sizes.body,
+          font: CONFIG.fonts.primary
+        })
+      ];
+      
+      if (project.technologies) {
+        projectChildren.push(
+          new TextRun({
+            text: ` | ${project.technologies}`,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      if (project.dates) {
+        projectChildren.push(
+          new TextRun({
+            text: "\t",
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          }),
+          new TextRun({
+            text: project.dates,
+            size: CONFIG.sizes.body,
+            font: CONFIG.fonts.primary
+          })
+        );
+      }
+      
+      this.children.push(
+        new Paragraph({
+          tabStops: [
+            {
+              type: TabStopType.RIGHT,
+              position: CONFIG.rightTabPosition
+            }
+          ],
+          spacing: {
+            after: 0
+          },
+          children: projectChildren
+        })
+      );
+
+      // Link if present
+      if (project.link) {
+        this.children.push(
+          new Paragraph({
+            style: "Normal",
+            children: [
+              new TextRun({
+                text: project.link,
+                size: CONFIG.sizes.body,
+                font: CONFIG.fonts.primary,
+                color: "0563C1"  // Standard link blue
+              })
+            ]
+          })
+        );
+      }
+
+      // Bullet points
+      for (const bullet of project.bullets) {
+        this.children.push(
+          new Paragraph({
+            numbering: {
+              reference: "resume-bullets",
+              level: 0
+            },
+            spacing: {
+              after: CONFIG.spacing.afterParagraph
+            },
+            children: [
+              new TextRun({
+                text: bullet,
+                size: CONFIG.sizes.body,
+                font: CONFIG.fonts.primary
+              })
+            ]
+          })
+        );
+      }
+    }
+  }
+}
+
+// ============================================================================
+// MAIN FUNCTION
+// ============================================================================
+
+async function generateResume(inputPath, outputPath) {
+  try {
+    // Read JSON input
+    const jsonData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+    
+    // Build document
+    const builder = new ResumeDocumentBuilder(jsonData);
+    const doc = builder.build();
+    
+    // Generate buffer and write to file
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+    
+    console.log(`â Resume generated successfully: ${outputPath}`);
+    return outputPath;
+    
+  } catch (error) {
+    console.error(`â Error generating resume: ${error.message}`);
+    throw error;
+  }
+}
+
+// ============================================================================
+// CLI ENTRY POINT
+// ============================================================================
+
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  
+  if (args.length < 2) {
+    console.log('Usage: node generate-resume.js <input.json> <output.docx>');
+    console.log('');
+    console.log('Example:');
+    console.log('  node generate-resume.js resume-data.json MyResume.docx');
+    process.exit(1);
+  }
+  
+  const [inputPath, outputPath] = args;
+  
+  generateResume(inputPath, outputPath)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+// Export for programmatic use
+module.exports = {
+  generateResume,
+  ResumeDocumentBuilder,
+  CONFIG
+};
