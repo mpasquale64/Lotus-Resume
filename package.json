@@ -1,17 +1,41 @@
 {
-  "name": "lotus-resume",
+  "name": "lotus",
   "version": "1.0.0",
-  "description": "Resume generator web app",
-  "main": "src/server.js",
+  "description": "A lightweight markdown note-taking app for macOS",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "webpack --mode development && electron .",
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch & electron .",
+    "electron": "electron ."
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "docx": "^8.2.0",
-    "dotenv": "^17.2.3",
-    "express": "^4.22.1",
-    "express-session": "^1.18.2",
-    "multer": "^2.0.2"
+    "chokidar": "^3.6.0",
+    "electron-store": "^8.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "@tiptap/react": "^2.6.0",
+    "@tiptap/starter-kit": "^2.6.0",
+    "@tiptap/extension-placeholder": "^2.6.0",
+    "@tiptap/pm": "^2.6.0",
+    "@codemirror/lang-markdown": "^6.3.0",
+    "@codemirror/state": "^6.4.0",
+    "@codemirror/view": "^6.33.0",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "codemirror": "^6.0.1"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "@babel/core": "^7.25.0",
+    "@babel/preset-env": "^7.25.0",
+    "@babel/preset-react": "^7.24.0",
+    "babel-loader": "^9.2.0",
+    "css-loader": "^7.1.0",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.0",
+    "html-webpack-plugin": "^5.6.0"
   }
 }
