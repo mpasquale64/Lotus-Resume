@@ -1,3 +1,3 @@
-# Lotus-Resume
+# Lotus-Notes
 
-Build life-changing resumes
+Building the ultimate markdown editor and reader
