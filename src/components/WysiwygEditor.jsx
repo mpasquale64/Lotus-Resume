@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useEditor as useTiptapEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Link from '@tiptap/extension-link';
+import { Markdown } from 'tiptap-markdown';
 import { useEditor } from '../context/EditorContext';
 import '../styles/editor.css';
 
@@ -11,21 +13,22 @@ export default function WysiwygEditor() {
   const editor = useTiptapEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: 'Start writing…' }),
+      Placeholder.configure({ placeholder: 'Start writing...' }),
+      Link.configure({ openOnClick: false }),
+      Markdown,
     ],
-    content: content,
+    content: content || '',
     onUpdate: ({ editor }) => {
-      // Convert to markdown-like text for storage
-      // Tiptap stores HTML internally; we serialize to text
-      updateContent(editor.storage.markdown?.getMarkdown?.() || editor.getText());
+      const md = editor.storage.markdown.getMarkdown();
+      updateContent(md);
     },
   });
 
-  // Sync content when file changes
+  // Sync content when file changes externally
   useEffect(() => {
     if (editor && content !== undefined) {
-      const currentContent = editor.getText();
-      if (currentContent !== content) {
+      const currentMd = editor.storage.markdown.getMarkdown();
+      if (currentMd !== content) {
         editor.commands.setContent(content || '');
       }
     }

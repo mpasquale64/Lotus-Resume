@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { useFileTree } from '../context/FileTreeContext';
+import ContextMenu from './ContextMenu';
 
 export default function FileTree({ items, depth = 0 }) {
   if (!items || items.length === 0) {
@@ -18,6 +19,9 @@ export default function FileTree({ items, depth = 0 }) {
 
 function FileTreeItem({ item, depth }) {
   const [expanded, setExpanded] = useState(true);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   const { activeFile, openFile } = useEditor();
   const { refreshFiles } = useFileTree();
   const isActive = activeFile === item.path;
@@ -30,26 +34,38 @@ function FileTreeItem({ item, depth }) {
     }
   };
 
-  const handleContextMenu = async (e) => {
+  const handleContextMenu = (e) => {
     e.preventDefault();
-    // Simple context menu via prompt for now
-    const action = prompt('Action: rename, delete');
-    if (!action || !window.lotus) return;
-
-    if (action.toLowerCase() === 'delete') {
-      if (confirm(`Delete "${item.name}"?`)) {
-        await window.lotus.deleteFile(item.path);
-        refreshFiles();
-      }
-    } else if (action.toLowerCase() === 'rename') {
-      const newName = prompt('New name:', item.name);
-      if (newName && newName !== item.name) {
-        const dir = item.path.substring(0, item.path.lastIndexOf('/'));
-        await window.lotus.renameFile(item.path, `${dir}/${newName}`);
-        refreshFiles();
-      }
-    }
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
+
+  const startRename = () => {
+    setRenameValue(item.name);
+    setIsRenaming(true);
+  };
+
+  const commitRename = async () => {
+    setIsRenaming(false);
+    if (!renameValue || renameValue === item.name || !window.lotus) return;
+    const dir = item.path.substring(0, item.path.lastIndexOf('/'));
+    await window.lotus.renameFile(item.path, `${dir}/${renameValue}`);
+    refreshFiles();
+  };
+
+  const handleDelete = async () => {
+    if (!window.lotus) return;
+    const confirmed = confirm(`Delete "${item.name}"?`);
+    if (!confirmed) return;
+    await window.lotus.deleteFile(item.path);
+    refreshFiles();
+  };
+
+  const menuItems = [
+    { label: 'Rename', action: startRename },
+    { separator: true },
+    { label: 'Delete', action: handleDelete, destructive: true },
+  ];
 
   return (
     <>
@@ -61,8 +77,31 @@ function FileTreeItem({ item, depth }) {
         <span className="tree-icon">
           {item.isDirectory ? (expanded ? '▼' : '▶') : '📄'}
         </span>
-        <span className="tree-name">{item.name.replace('.md', '')}</span>
+        {isRenaming ? (
+          <input
+            className="tree-rename-input"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') setIsRenaming(false);
+            }}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="tree-name">{item.name.replace('.md', '')}</span>
+        )}
       </div>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={menuItems}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
       {item.isDirectory && expanded && item.children && (
         <FileTree items={item.children} depth={depth + 1} />
       )}

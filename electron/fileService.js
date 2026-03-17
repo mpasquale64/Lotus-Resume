@@ -6,6 +6,7 @@ class FileService {
   constructor(rootDir) {
     this.rootDir = rootDir;
     this.watcher = null;
+    this.recentWrites = new Map(); // path -> timestamp for self-write suppression
   }
 
   startWatching(callback) {
@@ -16,12 +17,22 @@ class FileService {
       ignoreInitial: true,
       depth: 10,
     });
+
+    const filteredCallback = (event, filePath) => {
+      const writeTime = this.recentWrites.get(filePath);
+      if (writeTime && Date.now() - writeTime < 1000) {
+        // Suppress events triggered by our own writes
+        return;
+      }
+      callback(event, filePath);
+    };
+
     this.watcher
-      .on('add', (filePath) => callback('add', filePath))
-      .on('change', (filePath) => callback('change', filePath))
-      .on('unlink', (filePath) => callback('unlink', filePath))
-      .on('addDir', (dirPath) => callback('addDir', dirPath))
-      .on('unlinkDir', (dirPath) => callback('unlinkDir', dirPath));
+      .on('add', (filePath) => filteredCallback('add', filePath))
+      .on('change', (filePath) => filteredCallback('change', filePath))
+      .on('unlink', (filePath) => filteredCallback('unlink', filePath))
+      .on('addDir', (dirPath) => filteredCallback('addDir', dirPath))
+      .on('unlinkDir', (dirPath) => filteredCallback('unlinkDir', dirPath));
   }
 
   stopWatching() {
@@ -64,6 +75,7 @@ class FileService {
 
   writeFile(filePath, content) {
     if (!this._isInsideRoot(filePath)) return false;
+    this._markWrite(filePath);
     fs.writeFileSync(filePath, content, 'utf-8');
     return true;
   }
@@ -73,6 +85,7 @@ class FileService {
     if (fs.existsSync(filePath)) return false;
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    this._markWrite(filePath);
     fs.writeFileSync(filePath, '', 'utf-8');
     return true;
   }
@@ -130,6 +143,13 @@ class FileService {
         }
       }
     }
+  }
+
+  _markWrite(filePath) {
+    const resolved = path.resolve(filePath);
+    this.recentWrites.set(resolved, Date.now());
+    // Clean up after 2 seconds
+    setTimeout(() => this.recentWrites.delete(resolved), 2000);
   }
 
   _isInsideRoot(filePath) {

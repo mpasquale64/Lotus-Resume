@@ -9,12 +9,17 @@ import RawEditor from './components/RawEditor';
 import MarkdownReader from './components/MarkdownReader';
 import WelcomeScreen from './components/WelcomeScreen';
 import SearchBar from './components/SearchBar';
+import StatusBar from './components/StatusBar';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const { notesDir, initialized, initialize, selectNotesDir, refreshFiles } = useFileTree();
-  const { activeFile, editorType, viewMode, saveFile, createNewNote, setEditorType, setViewMode } = useEditor();
+  const {
+    activeFile, editorType, viewMode, isDirty,
+    saveFile, createNewNote, setEditorType, setViewMode,
+    handleExternalChange, externalChange, acceptExternalChange, dismissExternalChange,
+  } = useEditor();
   const { toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -42,17 +47,20 @@ export default function App() {
     return cleanup;
   }, [saveFile, createNewNote, notesDir, selectNotesDir, refreshFiles, setEditorType, setViewMode, toggleTheme]);
 
-  // Listen for file changes
+  // Listen for file changes - refresh tree and detect conflicts
   useEffect(() => {
     if (!window.lotus) return;
-    const cleanup = window.lotus.onFileChanged(() => {
+    const cleanup = window.lotus.onFileChanged((data) => {
       refreshFiles();
+      if (data.event === 'change' && data.filePath) {
+        handleExternalChange(data.filePath);
+      }
     });
     return cleanup;
-  }, [refreshFiles]);
+  }, [refreshFiles, handleExternalChange]);
 
   if (!initialized) {
-    return <div className="loading">Loading…</div>;
+    return <div className="loading">Loading...</div>;
   }
 
   if (!notesDir) {
@@ -84,7 +92,15 @@ export default function App() {
         <NavPanel open={sidebarOpen} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((v) => !v)} />
         <div className="editor-area">
           {searchOpen && <SearchBar onClose={() => setSearchOpen(false)} />}
+          {externalChange && (
+            <div className="conflict-bar">
+              <span>This file was modified externally.</span>
+              <button onClick={acceptExternalChange}>Reload</button>
+              <button onClick={dismissExternalChange}>Keep mine</button>
+            </div>
+          )}
           {renderEditor()}
+          <StatusBar />
         </div>
       </div>
     </div>

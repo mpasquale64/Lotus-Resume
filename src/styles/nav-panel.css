@@ -111,3 +111,65 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* Rename input */
+.tree-rename-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 0;
+}
+
+/* Context menu */
+.context-menu {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  min-width: 140px;
+  padding: 4px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .context-menu {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.context-menu-item:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.context-menu-item.destructive {
+  color: #ff3b30;
+}
+
+.context-menu-item.destructive:hover {
+  background: #ff3b30;
+  color: white;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
